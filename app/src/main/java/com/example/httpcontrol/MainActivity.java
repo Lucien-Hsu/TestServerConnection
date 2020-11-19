@@ -25,7 +25,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
-import java.net.URLConnection;
+import java.util.regex.MatchResult;
 
 public class MainActivity extends AppCompatActivity {
     private final String TAG = "mTest";
@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
     private String addGet = "API_Insert4?";
     private String addPost = "API_Insert4";
     private String updateGet = "API_Update2?";
-    private String deleteGet = "API_Delete?";
+    private String deleteGet = "API_Delete2?";
 
     //查詢資料所需欄位
     private String nameString = "cName=";
@@ -55,6 +55,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvDisplay;
 
     private String sexData;
+    private String idData;
+    private StringBuilder myAddress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,19 +86,39 @@ public class MainActivity extends AppCompatActivity {
         public void onClick(View view) {
             switch (view.getId()){
                 case R.id.btn_add_get:
-                    new PHPReadDate().start();
+
                     break;
+
                 case R.id.btn_add_post:
 
                     break;
+
                 case R.id.btn_update:
 
                     break;
+
                 case R.id.btn_data:
-
+                    new PHPReadDate().start();
                     break;
-                case R.id.btn_delete:
 
+                case R.id.btn_delete:
+                    if(etID.length() == 0){
+                        Toast.makeText(context, "Please input ID", Toast.LENGTH_SHORT).show();
+                    }else{
+                        //取得URL
+                        idData = etID.getText().toString();
+                        myAddress = new StringBuilder();
+                        //取得Authority
+                        myAddress.append(webAddress);
+                        //取得讀取資料庫之網頁
+                        myAddress.append(deleteGet);
+                        //取得條件
+                        myAddress.append(idString);
+                        //取得引數
+                        myAddress.append(idData);
+                        Log.d(TAG, "my address = " + myAddress);
+                        new PHPDeleteData().start();
+                    }
                     break;
             }
             Toast.makeText(context, view.getId() +"", Toast.LENGTH_SHORT).show();
@@ -104,7 +126,95 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * 網路IO
+     * 另開執行緒刪除資料
+     */
+    private class PHPDeleteData extends Thread{
+        private URL url;
+        private HttpURLConnection conn;
+        private int code;
+        private InputStream inputStream;
+        private String dataString;
+
+        @Override
+        public void run() {
+            super.run();
+            Log.d(TAG, "myAddress= " + myAddress);
+
+            try {
+                //取得URL
+                url = new URL(myAddress.toString());
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                //取得網路連線
+                conn = (HttpURLConnection)url.openConnection();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                //將Request設為GET
+                conn.setRequestMethod("GET");
+            } catch (ProtocolException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                //取得回應碼
+                code = conn.getResponseCode();
+                Log.d(TAG, "code = " + code);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            //依照回應碼做相應處理
+            if(code == HttpURLConnection.HTTP_OK){
+                try {
+                    inputStream = conn.getInputStream();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                //取得回傳資料之串流
+                InputStreamReader reader = new InputStreamReader(inputStream);
+                BufferedReader stringReader = new BufferedReader(reader);
+                try {
+                    dataString = stringReader.readLine();
+                    Log.d(TAG, "dataString = " + dataString);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                //關閉串流
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                //在主執行緒執行
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(dataString.length() == 0){
+                            //若無取內容則結束
+                            return;
+                        }
+
+                        //將內容顯示到螢幕
+                        tvDisplay.setText(dataString);
+                        Log.d(TAG, "dataString = " + dataString);
+                    }
+                });
+
+            }//end OK
+        }//end run
+    }
+
+    /**
+     * 另開執行緒讀取資料
      */
     private class PHPReadDate extends Thread {
         private StringBuilder myAddress;
@@ -342,4 +452,6 @@ public class MainActivity extends AppCompatActivity {
         //TextView
         tvDisplay = findViewById(R.id.tv_display);
     }
+
+
 }
